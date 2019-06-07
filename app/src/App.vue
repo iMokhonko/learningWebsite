@@ -2,53 +2,34 @@
   <div id="app">
     <el-container>
       <el-aside width="250px">
-        <div class="aside-menu">
-          <el-menu
-            default-active="1"
-            class="el-menu-vertical-demo"
-            background-color="#545c64"
-            text-color="#fff"
-            active-text-color="#ffd04b"
-            style="height:100%;"
-          >
-            <el-menu-item index="1">
-              <span>Tasks</span>
-            </el-menu-item>
-
-            <el-menu-item index="2">
-              <span>Settings</span>
-            </el-menu-item>
-          
-          </el-menu>
-        </div>
+        <asideMenu></asideMenu>
       </el-aside>
 
       <el-container style="padding: 25px;">
-        <router-view></router-view>
+          <router-view></router-view>
       </el-container>
     </el-container>
   </div>
 </template>
 
 <script>
+import asideMenu from "./components/aside.vue";
+
 export default {
   name: "Application",
-  components: {}
+  components: {
+    asideMenu
+  }
 };
 </script>
 
 <style>
-html, body {
+html,
+body {
   height: 100%;
   overflow: hidden;
   margin: 0;
   padding: 0;
-}
-
-.aside-menu {
-  position: relative;
-  height:100vh;
-  background: #545c64;
 }
 
 .page-header {

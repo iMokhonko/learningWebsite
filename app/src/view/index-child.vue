@@ -1,7 +1,6 @@
 <template>
   <div>
-    index
-    <router-view></router-view>
+      index-child
   </div>
 </template>
 
@@ -11,7 +10,7 @@
 export default {
   name: "index",
   components: {},
-  data: () => {
+  data() {
     return {};
   },
   methods: {
