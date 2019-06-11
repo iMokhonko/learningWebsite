@@ -29,7 +29,8 @@ export default {
 
 <style>
 .aside-menu {
-  position: relative;
+  position: absolute;
+  width:300px;
   height:100vh;
   background: #545c64;
 }

@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <el-container>
-      <el-aside width="250px">
+      <el-aside>
         <asideMenu></asideMenu>
       </el-aside>
 
@@ -27,7 +27,7 @@ export default {
 html,
 body {
   height: 100%;
-  overflow: hidden;
+  overflow: auto;
   margin: 0;
   padding: 0;
 }

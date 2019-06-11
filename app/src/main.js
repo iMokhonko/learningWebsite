@@ -1,37 +1,41 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router';
+import VueResource from 'vue-resource'
+
 import App from './App.vue'
-import {store} from './store';
-
-import routerview from "./components/routerview.vue";
-
-import indexPage from "./view/index.vue";
-import indexChildPage from './view/index-child.vue'
+import { store } from './store';
 
 import ElementUI from 'element-ui';
 import 'element-ui/lib/theme-chalk/index.css';
+
+import Vuelidate from 'vuelidate';
+
 
 Vue.config.productionTip = true;
 
 Vue.use(VueRouter);
 Vue.use(ElementUI);
+Vue.use(Vuelidate);
+Vue.use(VueResource);
 
 
 const router = new VueRouter({
   mode: 'history',
   routes: [{
-    path: '/home', component: routerview,
+    path: '/users', component: () => import('./components/routerview.vue'),
     children: [
-      {path: '/', component: indexPage},
-      {path: 'child', component: indexChildPage}
+      { path: '/', component: () => import('./view/users/list.vue') },
+      {
+        path: 'add', component: () => import('./view/users/add.vue'),
+        beforeEnter(to, from, next) {
+          next(true);
+        }
+      }
     ]
   },
   {
-    path: '/user', component: routerview,
-    children: [
-      {path: '/', component: indexChildPage},
-      {path: 'ek', component: indexPage}
-    ]
+    path: '*',
+    component: () => import('./view/404.vue')
   }]
 });
 
