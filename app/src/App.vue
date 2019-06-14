@@ -1,14 +1,14 @@
 <template>
-  <div id="app">
-    <el-container>
-      <el-aside>
-        <asideMenu></asideMenu>
-      </el-aside>
+  <div id="app" class="container">
 
-      <el-container style="padding: 25px;">
+        <el-breadcrumb style="margin-bottom: 50px;" separator-class="el-icon-arrow-right">
+          <el-breadcrumb-item v-for="(breadcrumb, index) in breadCrumbsPath" v-bind:key="index" :to="{ path: breadcrumb.url }">{{ breadcrumb.name }}</el-breadcrumb-item>
+        </el-breadcrumb>
+
+        <div>
           <router-view></router-view>
-      </el-container>
-    </el-container>
+        </div>
+    
   </div>
 </template>
 
@@ -19,6 +19,16 @@ export default {
   name: "Application",
   components: {
     asideMenu
+  },
+  watch: {
+    $route(to, from) {
+      this.breadCrumbsPath = this.$route.meta.bread
+    }
+  },
+  data() {
+    return {
+      breadCrumbsPath: [] 
+    }
   }
 };
 </script>
@@ -32,9 +42,11 @@ body {
   padding: 0;
 }
 
-.page-header {
-  display: block;
-  background: #f2f2f2;
-  width: 100%;
+.container {
+  width: 800px;
+  left:50%;
+  margin-left:-400px;
+  position: relative;
+  margin-top: 50px;
 }
 </style>

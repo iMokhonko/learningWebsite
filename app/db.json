@@ -1,24 +1,10 @@
 {
   "users": [
     {
-      "id": 1,
-      "email": "email@gmail.com",
-      "password": "123456"
-    },
-    {
-      "email": "admin@google.com",
-      "password": "0987654321",
-      "id": 2
-    },
-    {
-      "email": "kk@gg.co",
+      "email": "kkk@gmail.com",
       "password": "123456",
-      "id": 3
-    },
-    {
-      "email": "vk@vk.com",
-      "password": "123456",
-      "id": 4
+      "login": "hello hinnga",
+      "id": 1
     }
   ]
 }
