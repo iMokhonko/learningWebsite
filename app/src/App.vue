@@ -1,7 +1,7 @@
 <template>
   <div id="app" class="container">
 
-        <el-breadcrumb style="margin-bottom: 50px;" separator-class="el-icon-arrow-right">
+        <el-breadcrumb style="margin-bottom: 25px;" separator-class="el-icon-arrow-right">
           <el-breadcrumb-item v-for="(breadcrumb, index) in breadCrumbsPath" v-bind:key="index" :to="{ path: breadcrumb.url }">{{ breadcrumb.name }}</el-breadcrumb-item>
         </el-breadcrumb>
 
@@ -47,6 +47,6 @@ body {
   left:50%;
   margin-left:-400px;
   position: relative;
-  margin-top: 50px;
+  margin-top: 25px;
 }
 </style>

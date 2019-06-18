@@ -12,12 +12,6 @@
       <el-step title="Step 4" description="Confirmation"></el-step>
     </el-steps>
 
-    <div style="position: fixed; right: 0px; bottom: 0px">
-      <pre>
-        <!-- {{ $v }} -->
-      </pre>
-    </div>
-
     <form @submit.prevent>
       <div v-if="active === 0">
         <div class="formContainer">
@@ -134,7 +128,7 @@
           <div
             class="fieldInfo fieldIncorrect"
             v-if="$v.user.password.$error && !$v.user.password.minLength"
-          >Password must be at least 5 symbols</div>
+          >Password must be at least 6 symbols</div>
 
           <div
             class="fieldInfo weak"
@@ -243,25 +237,28 @@
           <h2 align="center">Sex</h2>
 
           <div style="text-align:center">
-            <el-select v-model="user.sex" placeholder="Select">
+            <el-select
+              v-model="user.sex"
+              @blur="$v.user.sex.$touch()"
+              :class="{'is-exceed': $v.user.sex.$error}"
+              clearable
+              placeholder="Select"
+            >
               <el-option
                 v-for="item in sexOptions"
                 :key="item.value"
                 :label="item.label"
-                v-model="user.sex"
                 :value="item.value"
               ></el-option>
             </el-select>
-          </div>
 
-          <div
-            class="stepDesc"
-          >Lorem ipsum dolor sit amet consectetur adipisicing elit. Est consequuntur quaerat repudiandae cum numquam ipsa aliquam odit perspiciatis. Commodi molestiae sed perspiciatis et accusantium quod repellendus soluta voluptates explicabo sapiente.</div>
+            <div class="fieldInfo fieldIncorrect" v-if="$v.user.sex.$error">Sex is required</div>
+          </div>
 
           <div class="stepButtonsBlock">
             <el-button-group>
               <el-button @click="prevStep" type="primary" icon="el-icon-arrow-left">Previous: image</el-button>
-              <el-button @click="nextStep" type="primary">
+              <el-button @click="nextStep" type="primary" :disabled="$v.user.sex.$invalid">
                 Next: birthday
                 <i class="el-icon-arrow-right el-icon-right"></i>
               </el-button>
@@ -275,17 +272,19 @@
           <h2 align="center">Birthday</h2>
 
           <div style="text-align:center">
-            <el-date-picker v-model="user.birthday" type="date" placeholder="Choose your birthday"></el-date-picker>
+            <el-date-picker
+              :class="{'is-exceed': $v.user.birthday.$error}"
+              v-model="user.birthday"
+              type="date"
+              placeholder="Choose your birthday"
+            ></el-date-picker>
           </div>
 
-          <div
-            class="stepDesc"
-          >Lorem ipsum dolor sit amet consectetur adipisicing elit. Est consequuntur quaerat repudiandae cum numquam ipsa aliquam odit perspiciatis. Commodi molestiae sed perspiciatis et accusantium quod repellendus soluta voluptates explicabo sapiente.</div>
-
+        
           <div class="stepButtonsBlock">
             <el-button-group>
               <el-button @click="prevStep" type="primary" icon="el-icon-arrow-left">Previous: sex</el-button>
-              <el-button @click="nextStep" type="primary">
+              <el-button @click="nextStep" type="primary" :disabled="$v.user.birthday.$invalid">
                 Next: confirmation
                 <i class="el-icon-arrow-right el-icon-right"></i>
               </el-button>
@@ -306,6 +305,8 @@
           Sex: {{ user.sex }}
           <br>
           Birthday: {{ user.birthday }}
+          <br>
+          <img :src="user.image" alt>
           <div class="stepButtonsBlock">
             <el-button-group>
               <el-button
@@ -313,7 +314,7 @@
                 type="primary"
                 icon="el-icon-arrow-left"
               >Previous: birthday</el-button>
-              <el-button @click="nextStep" type="primary" icon="el-icon-check">Confirm</el-button>
+              <el-button @click="registerUser" type="primary" icon="el-icon-check">Confirm</el-button>
             </el-button-group>
           </div>
         </div>
@@ -340,7 +341,7 @@ export default {
   components: {},
   data() {
     return {
-      active: 3,
+      active: 0,
 
       loading: false,
 
@@ -360,13 +361,8 @@ export default {
         {
           value: "female",
           label: "Female"
-        },
-        {
-          value: "xexexe",
-          label: "Asian"
         }
       ],
-      value: "",
       percentage: 0,
       customColors: [
         { color: "red", percentage: 30 },
@@ -432,19 +428,16 @@ export default {
             this.imgUploading = parseInt(progress);
           },
           () => {},
-          () => {
-            const imageSrc = fb
-              .storage()
-              .ref()
-              .child(fileData.ref.fullPath)
-              .getDownloadURL()
-              .then(() => {
-                this.user.image = imageSrc;
-                console.log(this.user);
-              });
+          async () => {
+            fileData.snapshot.ref.getDownloadURL().then(downloadURL => {
+              this.user.image = downloadURL;
+            });
           }
         );
       };
+    },
+    registerUser() {
+      this.$store.dispatch('userState/registerUser', this.user);
     }
   },
   validations: {
@@ -479,7 +472,7 @@ export default {
       },
       password: {
         required,
-        minLength: minLength(5),
+        minLength: minLength(6),
         formatCheck: function(value) {
           var password = value; // Получаем пароль из формы
           var s_letters = "qwertyuiopasdfghjklzxcvbnm"; // Буквы в нижнем регистре
@@ -523,7 +516,13 @@ export default {
       confirmPassword: {
         sameAs: sameAs("password")
       },
-      image: {}
+      image: {},
+      sex: {
+        required
+      },
+      birthday: {
+        required
+      }
     }
   }
 };
@@ -541,11 +540,6 @@ export default {
   margin-top: 35px;
   position: relative;
   text-align: center;
-}
-
-.stepDesc {
-  color: grey;
-  margin: 50px 0px;
 }
 
 .fieldInfo {
