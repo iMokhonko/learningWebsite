@@ -1,8 +1,13 @@
 <template>
   <div v-loading="loading">
     <div class="control-btns">
-      <el-button type="primary" @click="openAddTaskWindow">Add Task</el-button>
-      <el-button style="margin-left:15px;" type="primary" @click="openAddStageWindow">Add stage</el-button>
+      <el-button type="primary" @click="openAddTaskWindow" icon="el-icon-plus">Add Task</el-button>
+      <el-button
+        style="margin-left:15px;"
+        type="primary"
+        @click="openAddStageWindow"
+        icon="el-icon-plus"
+      >Add stage</el-button>
 
       <el-button
         style="float:right;"
@@ -62,10 +67,25 @@
         <div class="stage-tasks">
           <div
             class="task"
+            @click="openTask(task, stage)"
             :key="taskIndex"
             v-for="(task, taskIndex) in taskBoard[stageIndex].tasks"
           >
-            <pre>{{ task.text }}</pre>
+            <div class="task-title">{{ task.title }}</div>
+            <pre>{{ task.desc }}</pre>
+
+            <div class="task-rate-block">
+              <el-rate
+                v-model="task.priority"
+                disabled
+                :colors="['#ecf0f1', '#f1c40f', '#d35400', '#c0392b']"
+              ></el-rate>
+            </div>
+
+            <div
+              class="task-days-left"
+            >Days left: {{ Math.ceil(Math.abs(task.taskDateRange[1] - new Date().getTime()) / (1000 * 3600 * 24)) }}</div>
+
             <div class="task-edit-btns-block">
               <el-tooltip
                 class="item"
@@ -76,7 +96,7 @@
                 <el-button
                   size="mini"
                   v-if="!editMode"
-                  @click="finishTask(task, stage)"
+                  @click.stop="finishTask(task, stage)"
                   type="success"
                   icon="el-icon-check"
                   circle
@@ -91,7 +111,7 @@
               >
                 <el-button
                   size="mini"
-                  @click="openEditTaskWindow(task, stage)"
+                  @click.stop="openEditTaskWindow(task, stage)"
                   type="primary"
                   icon="el-icon-edit"
                   circle
@@ -106,7 +126,7 @@
               >
                 <el-button
                   size="mini"
-                  @click="deleteTask(task, stage)"
+                  @click.stop="deleteTask(task, stage)"
                   type="danger"
                   icon="el-icon-delete"
                   circle
@@ -124,7 +144,28 @@
       width="40%"
     >
       <form @submit.prevent>
-        <el-input type="textarea" :rows="4" v-model="task.text" placeholder="explain your task"></el-input>
+        <div class="task-form-label">Task title:</div>
+        <el-input type="text" style="margin-bottom:20px;" v-model="task.title"></el-input>
+
+        <div class="task-form-label">Task description:</div>
+        <el-input type="textarea" style="margin-bottom: 15px;" :rows="4" v-model="task.desc"></el-input>
+
+        <div style="display:inline-block; margin-right: 20px;">
+          <div class="task-form-label">Pick start and finish date</div>
+          <el-date-picker
+            v-model="task.taskDateRange"
+            type="daterange"
+            range-separator="To"
+            start-placeholder="Start date"
+            end-placeholder="End date"
+            value-format="timestamp"
+          ></el-date-picker>
+        </div>
+
+        <div style="display:inline-block;vertical-align:top;">
+          <div class="task-form-label">Task priority:</div>
+          <el-rate v-model="task.priority" :colors="['#ecf0f1', '#f1c40f', '#d35400', '#c0392b']"></el-rate>
+        </div>
       </form>
       <span slot="footer" class="dialog-footer">
         <el-button @click="addEditTaskDialogVisible = false">Cancel</el-button>
@@ -158,7 +199,7 @@
 
 <script>
 import * as fb from "firebase";
-import { setTimeout } from "timers";
+import { stat } from 'fs';
 
 export default {
   data() {
@@ -167,7 +208,10 @@ export default {
       loading: false,
       taskBoard: [],
       task: {
-        text: ""
+        title: "",
+        desc: "",
+        priority: 0,
+        taskDateRange: ""
       },
       stage: {
         title: ""
@@ -183,7 +227,15 @@ export default {
     };
   },
   mounted() {
-    this.loadBoard();
+    this.loading = true;
+    fb.auth().onAuthStateChanged(user => {
+      if (user) {
+        this.loadBoard();
+        this.loading = false;
+      } else {
+        this.$router.push("/login");
+      }
+    });
   },
   computed: {
     currentUser() {
@@ -204,7 +256,7 @@ export default {
     openAddTaskWindow() {
       this.addEditTaskDialogVisible = true;
       this.editTask = false;
-      this.task = { text: "" };
+      this.task = { title: "", desc: "", taskDateRange: "" };
     },
 
     openEditTaskWindow(task, stage) {
@@ -217,7 +269,6 @@ export default {
 
     async addEditTask() {
       if (this.editTask) {
-
         let update = {};
         update[
           "/taskBoard/user-" +
@@ -228,8 +279,14 @@ export default {
             this.task.taskId
         ] = this.task;
         this.updateDb(update);
-
       } else {
+        this.task = {
+          ...this.task,
+          created: new Date().getTime()
+        };
+
+        console.log(this.task.taskDateRange);
+
         await fb
           .database()
           .ref(
@@ -241,6 +298,12 @@ export default {
       }
 
       this.addEditTaskDialogVisible = false;
+    },
+
+    openTask(task, stage) {
+      this.$router.push(
+        `/taskBoard/stage/${stage.stageId}/task/${task.taskId}`
+      );
     },
 
     async finishTask(task, stage) {
@@ -267,6 +330,22 @@ export default {
             }/tasks`
           )
           .push(task);
+      } else {
+        const taskRef = fb
+          .database()
+          .ref(
+            `taskBOard/user-${this.currentUser.uid}/stages/${
+              stage.stageId
+            }/tasks/${task.taskId}`
+          );
+        const taskData = task;
+        
+        this.deleteTask(task, stage);
+
+        await fb
+          .database()
+          .ref(`taskBoard/user-${this.currentUser.uid}/finishedTasks`)
+          .push(taskData);
       }
 
       this.loading = false;
@@ -289,7 +368,6 @@ export default {
 
     async loadBoard() {
       this.loading = true;
-
       const taskBoard = await fb
         .database()
         .ref(`taskBoard/user-${this.currentUser.uid}`);
@@ -297,17 +375,19 @@ export default {
       taskBoard.on("value", snapshot => {
         this.taskBoard = [];
         Object.keys(snapshot.val()).forEach(key => {
-          Object.keys(snapshot.val()[key]).forEach(stage => {
-            const stageValue = snapshot.val()[key][stage];
-            stageValue.stageId = stage;
-            if (stageValue.tasks !== undefined) {
-              Object.keys(stageValue.tasks).forEach(key => {
-                stageValue.tasks[key].taskId = key;
-              });
-            }
+          if (key === "stages") {
+            Object.keys(snapshot.val()[key]).forEach(stage => {
+              const stageValue = snapshot.val()[key][stage];
+              stageValue.stageId = stage;
+              if (stageValue.tasks !== undefined) {
+                Object.keys(stageValue.tasks).forEach(key => {
+                  stageValue.tasks[key].taskId = key;
+                });
+              }
 
-            this.taskBoard.push(stageValue);
-          });
+              this.taskBoard.push(stageValue);
+            });
+          }
         });
 
         this.sortStages(this.taskBoard);
@@ -344,7 +424,7 @@ export default {
             "/stages/" +
             this.stage.stageId
         ] = this.stage;
-        this.updateStage(update);
+        this.updateDb(update);
       } else {
         let nextOrder = this.getNextOrder(this.taskBoard);
         const newStage = { title: this.stage.title, order: nextOrder };
@@ -501,7 +581,7 @@ export default {
         .database()
         .ref()
         .update(updates);
-    },
+    }
   }
 };
 </script>
@@ -526,9 +606,35 @@ export default {
   border: 1px solid #f2f2f2;
   border-radius: 3px;
   word-break: break-all;
-  margin-top: 30px;
+  margin-bottom: 30px;
   padding-bottom: 0px;
   white-space: pre;
+  cursor: pointer;
+}
+
+.task:hover {
+  background: rgba(236, 240, 241, 0.1);
+}
+
+.task-title {
+  font-size: 17px;
+  margin-bottom: 7px;
+  text-align: center;
+  font-weight: bold;
+}
+
+.task-rate-block {
+  position: absolute;
+  margin-top: 5px;
+  margin-left: 46px;
+}
+
+.task-days-left {
+  position: absolute;
+  font-size: 11px;
+  color: grey;
+  margin-top: 10px;
+  margin-left: 135px;
 }
 
 .task-stage {
@@ -555,7 +661,7 @@ export default {
 
 .task-edit-btns-block {
   border-top: 1px solid #f2f2f2;
-  margin-top: 10px;
+  margin-top: 15px;
   padding-top: 10px;
   text-align: center;
   margin-bottom: -13px;
@@ -589,6 +695,12 @@ pre {
 
 .left-text {
   text-align: left;
+}
+
+.task-form-label {
+  font-size: 15px;
+  font-weight: bold;
+  margin: 10px 0px;
 }
 </style>
 

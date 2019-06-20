@@ -17,55 +17,72 @@ Vue.use(VueRouter);
 Vue.use(ElementUI);
 Vue.use(Vuelidate);
 
-
 const router = new VueRouter({
   mode: 'history',
   routes: [{
-    path: '/user', component: () => import('./components/routerview.vue'),
+    path: '/', component: () => import('./view/index.vue'),
+    meta: {
+      bread: [{
+        'name': 'Homepage',
+        'url': '/',
+      }]
+    }
+  }, 
+  {
+    path: '/taskBoard', component: () => import('./components/routerview.vue'),
     children: [
       {
-        path: '/', component: () => import('./view/users/profile.vue'),
+        path: '/', component: () => import('./view/taskBoard.vue'),
         meta: {
           bread: [{
             'name': 'Homepage',
             'url': '/',
           }, {
-            'name': 'Profile',
-            'url': '/user',
+            'name': 'Task board',
+            'url': '/taskBoard',
           }]
         }
       },
       {
-        path: 'register', component: () => import('./view/users/register.vue'),
+        path: 'stage/:stageId/task/:taskId', component: () => import('./view/taskInfo.vue'),
         meta: {
           bread: [{
             'name': 'Homepage',
             'url': '/',
           }, {
-            'name': 'Profile',
-            'url': '/user',
+            'name': 'Task board',
+            'url': '/taskBoard',
           }, {
-            'name': 'Add',
-            'url': '/user/register',
-          }]
-        }
-      },
-      {
-        path: 'login', component: () => import('./view/users/login.vue'),
-        meta: {
-          bread: [{
-            'name': 'Homepage',
-            'url': '/',
-          }, {
-            'name': 'Profile',
-            'url': '/user',
-          }, {
-            'name': 'Login',
-            'url': '/user/login',
+            'name': 'Task Info',
+            'url': 'task/:taskId',
           }]
         }
       }
     ]
+  },
+  {
+    path: '/login', component: () => import('./view/users/login.vue'),
+    meta: {
+      bread: [{
+        'name': 'Homepage',
+        'url': '/',
+      }, {
+        'name': 'Login',
+        'url': '/login',
+      }]
+    }
+  },
+  {
+    path: '/register', component: () => import('./view/users/register.vue'),
+    meta: {
+      bread: [{
+        'name': 'Homepage',
+        'url': '/',
+      }, {
+        'name': 'Registration',
+        'url': '/register',
+      }]
+    }
   },
   {
     path: '*',
@@ -89,11 +106,11 @@ new Vue({
     };
     fb.initializeApp(firebaseConfig);
 
-    fb.auth().onAuthStateChanged((user) => {
+    fb.auth().onAuthStateChanged(user => {
       if (user) {
-        this.$store.dispatch('userState/autoLogin', user);
+        this.$store.dispatch("userState/autoLogin", user);
       } else {
-        this.$store.dispatch('userState/logoutUser');
+        this.$store.dispatch("userState/logoutUser");
       }
     });
   }

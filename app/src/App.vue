@@ -13,10 +13,10 @@
 
       <div class="header-user-info">
         <div v-if="!isUserLoggedIn">
-          <router-link to="/user/register">
+          <router-link to="/register">
             <el-button icon="el-icon-user" size="mini" type="primary">Register user</el-button>
           </router-link>
-          <router-link to="/user/login">
+          <router-link to="/login">
             <el-button
               style="margin-left: 20px;"
               size="mini"
@@ -50,12 +50,10 @@
 </template>
 
 <script>
-import asideMenu from "./components/aside.vue";
 
 export default {
   name: "Application",
   components: {
-    asideMenu
   },
   watch: {
     $route(to, from) {
@@ -111,8 +109,4 @@ body {
   margin-right: 25px;
 }
 
-.container {
-  width: 100%;
-  position: relative;
-}
 </style>

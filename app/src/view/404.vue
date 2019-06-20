@@ -1,7 +1,5 @@
 <template>
-  <div class="aside-menu">
-         <h1>404</h1>
-    </div>
+  <center><h1>404</h1></center>
 </template>
 
 <script>

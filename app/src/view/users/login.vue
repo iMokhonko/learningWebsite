@@ -27,6 +27,7 @@ export default {
   methods: {
     login() {
       this.$store.dispatch("userState/loginUser", this.user).then(user => {
+        this.$router.push("/")
       });
     }
   }
