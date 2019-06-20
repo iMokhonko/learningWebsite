@@ -95,6 +95,6 @@ new Vue({
       } else {
         this.$store.dispatch('userState/logoutUser');
       }
-    })
+    });
   }
 }).$mount('#app')
