@@ -44,7 +44,7 @@ const router = new VueRouter({
         }
       },
       {
-        path: 'stage/:stageId/task/:taskId', component: () => import('./view/taskInfo.vue'),
+        path: 'stages/:stageId/tasks/:taskId', component: () => import('./view/taskInfo.vue'),
         meta: {
           bread: [{
             'name': 'Homepage',

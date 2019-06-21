@@ -87,10 +87,21 @@
             >Days left: {{ Math.ceil(Math.abs(task.taskDateRange[1] - new Date().getTime()) / (1000 * 3600 * 24)) }}</div>
 
             <div class="task-edit-btns-block">
+              <el-tooltip class="item" effect="dark" content="Send this task back" placement="top">
+                <el-button
+                  size="mini"
+                  v-if="!editMode"
+                  @click.stop="openMoveTaskBackWindow(task, stage)"
+                  type="info"
+                  icon="el-icon-back"
+                  circle
+                ></el-button>
+              </el-tooltip>
+
               <el-tooltip
                 class="item"
                 effect="dark"
-                content="finish this task in current stage"
+                content="Finish this task in current stage"
                 placement="top"
               >
                 <el-button
@@ -102,6 +113,7 @@
                   circle
                 ></el-button>
               </el-tooltip>
+
               <el-tooltip
                 class="item"
                 v-if="editMode"
@@ -126,7 +138,7 @@
               >
                 <el-button
                   size="mini"
-                  @click.stop="deleteTask(task, stage)"
+                  @click.stop="deleteTask(task, stage.stageId)"
                   type="danger"
                   icon="el-icon-delete"
                   circle
@@ -194,12 +206,51 @@
         >{{ editStage ? 'Edit stage' : 'Add stage' }}</el-button>
       </span>
     </el-dialog>
+
+    <el-dialog
+      :title="editStage ? 'Edit stage' : 'Add stage'"
+      :visible.sync="addEditStageDialogVisible"
+      width="40%"
+    >
+      <form @submit.prevent>
+        <el-input type="text" v-model="stage.title" placeholder="stage title"></el-input>
+      </form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="addEditStageDialogVisible = false">Cancel</el-button>
+        <el-button
+          type="primary"
+          :loading="stageAdding"
+          @click="addEditStage"
+        >{{ editStage ? 'Edit stage' : 'Add stage' }}</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog title="Move task back" :visible.sync="moveTaskBackWindow" width="30%">
+      <form @submit.prevent>
+        <div class="task-form-label">Choose the stage to move</div>
+        <el-select v-model="moveToStageId" placeholder="Select">
+          <el-option
+            v-for="stage in prevStages"
+            :key="stage.stageId"
+            :label="stage.title"
+            :value="stage.stageId"
+          ></el-option>
+        </el-select>
+
+        <div class="task-form-label">Reason</div>
+        <el-input type="textarea" :rows="2" v-model="moveBackReason"></el-input>
+      </form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="moveTaskBackWindow = false">Cancel</el-button>
+        <el-button type="primary" @click="sendTaskBack(task, stage)">Confirm</el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import * as fb from "firebase";
-import { stat } from 'fs';
+import { stat } from "fs";
 
 export default {
   data() {
@@ -223,7 +274,13 @@ export default {
       editTask: false,
 
       addEditStageDialogVisible: false,
-      editStage: false
+      editStage: false,
+      prevState: null,
+
+      moveTaskBackWindow: false,
+      moveToStageId: null,
+      moveBackReason: "",
+      prevStages: [],
     };
   },
   mounted() {
@@ -264,11 +321,24 @@ export default {
       this.editTask = true;
       this.task = task;
       this.stage = stage;
-      console.log(this.task);
+
+      this.prevState = {title: this.task.title, desc: this.task.desc, priority: this.task.priority, taskDateRange: this.task.taskDateRange};
     },
 
     async addEditTask() {
       if (this.editTask) {
+
+          const newState = {title: this.task.title, desc: this.task.desc, priority: this.task.priority, taskDateRange: this.task.taskDateRange};
+
+        this.task.lifecycle.push({
+          type: "edited",
+          date: new Date().getTime(),
+          newState: newState,
+          prevState: this.prevState
+        });
+
+        console.log(this.task)
+
         let update = {};
         update[
           "/taskBoard/user-" +
@@ -278,14 +348,18 @@ export default {
             "/tasks/" +
             this.task.taskId
         ] = this.task;
+
         this.updateDb(update);
       } else {
-        this.task = {
-          ...this.task,
-          created: new Date().getTime()
+        this.task.lifecycle = [];
+
+        let created = {
+          type: "created",
+          toStage: this.taskBoard[0].title,
+          date: new Date().getTime()
         };
 
-        console.log(this.task.taskDateRange);
+        this.task.lifecycle.push(created);
 
         await fb
           .database()
@@ -302,68 +376,104 @@ export default {
 
     openTask(task, stage) {
       this.$router.push(
-        `/taskBoard/stage/${stage.stageId}/task/${task.taskId}`
+        `/taskBoard/stages/${stage.stageId}/tasks/${task.taskId}`
       );
     },
 
     async finishTask(task, stage) {
-      this.loading = true;
-
       const stageIndex = this.taskBoard.findIndex(
         value => value.stageId === stage.stageId
       );
 
       if (this.taskBoard[stageIndex + 1] !== undefined) {
-        await fb
-          .database()
-          .ref(
-            `taskBoard/user-${this.currentUser.uid}/stages/${
-              stage.stageId
-            }/tasks/${task.taskId}`
-          )
-          .remove();
-        await fb
-          .database()
-          .ref(
-            `/taskBoard/user-${this.currentUser.uid}/stages/${
-              this.taskBoard[stageIndex + 1].stageId
-            }/tasks`
-          )
-          .push(task);
+        task.lifecycle.push({
+          type: "finished",
+          fromStage: stage.title,
+          toStage: this.taskBoard[stageIndex + 1].title,
+          date: new Date().getTime()
+        });
+
+        this.moveTask(
+          task,
+          stage.stageId,
+          this.taskBoard[stageIndex + 1].stageId
+        );
       } else {
-        const taskRef = fb
-          .database()
-          .ref(
-            `taskBOard/user-${this.currentUser.uid}/stages/${
-              stage.stageId
-            }/tasks/${task.taskId}`
-          );
-        const taskData = task;
-        
-        this.deleteTask(task, stage);
+        task.lifecycle.push({
+          type: `finished`,
+          fromStage: stage.title,
+          date: new Date().getTime()
+        });
+
+        this.$message({ message: "Moved to finished tasks", type: "success" });
+
+        let taskData = task;
+
+        this.deleteTask(task, stage.stageId);
 
         await fb
           .database()
           .ref(`taskBoard/user-${this.currentUser.uid}/finishedTasks`)
           .push(taskData);
       }
-
-      this.loading = false;
     },
 
-    async deleteTask(task, stage) {
-      this.loading = true;
+    openMoveTaskBackWindow(task, stage) {
+      this.task = task;
+      this.stage = stage;
+      this.moveTaskBackWindow = true;
 
+      this.prevStages = [];
+      for (let i = 0; i < this.taskBoard.length; i++) {
+        if (stage.stageId == this.taskBoard[i].stageId) {
+          break;
+        }
+        this.prevStages.push(this.taskBoard[i]);
+      }
+    },
+
+    async sendTaskBack(task, stage) {
+      const stageIndex = this.taskBoard.findIndex(
+        value => value.stageId === stage.stageId
+      );
+      if (stageIndex === 0) {
+        return;
+      }
+
+      task.lifecycle.push({
+        type: `movedBack`,
+        fromStage: stage.title,
+        toStage: this.taskBoard[stageIndex - 1].title,
+        date: new Date().getTime(),
+        desc: this.moveBackReason
+      });
+
+      this.moveTask(task, stage.stageId, this.moveToStageId).then(() => {
+        this.moveTaskBackWindow = false;
+      });
+    },
+
+    async moveTask(task, fromStageId, toStageId) {
+      this.deleteTask(task, fromStageId);
+      this.addTask(task, toStageId);
+    },
+
+    async addTask(task, stageId) {
+      await fb
+        .database()
+        .ref(`/taskBoard/user-${this.currentUser.uid}/stages/${stageId}/tasks`)
+        .push(task);
+    },
+
+    async deleteTask(task, stageId) {
       await fb
         .database()
         .ref(
-          `taskBoard/user-${this.currentUser.uid}/stages/${
-            stage.stageId
-          }/tasks/${task.taskId}`
+          `taskBoard/user-${this.currentUser.uid}/stages/${stageId}/tasks/${
+            task.taskId
+          }`
         )
         .remove();
-
-      this.loading = false;
     },
 
     async loadBoard() {
@@ -633,8 +743,8 @@ export default {
   position: absolute;
   font-size: 11px;
   color: grey;
-  margin-top: 10px;
-  margin-left: 135px;
+  margin-top: 23px;
+  margin-left: 160px;
 }
 
 .task-stage {
@@ -691,6 +801,7 @@ export default {
 
 pre {
   margin: 0;
+  white-space: pre-wrap;
 }
 
 .left-text {
