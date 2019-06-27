@@ -77,7 +77,7 @@
           <el-rate
             v-model="taskPrevState.priority"
             disabled
-            :colors="['#ecf0f1', '#f1c40f', '#d35400', '#c0392b']"
+            :colors="['#636e72', '#fdcb6e', '#e17055', '#d63031']"
           ></el-rate>
         </div>
         <div class="task-state-divide-arrow">
@@ -87,7 +87,7 @@
           <el-rate
             v-model="taskNewState.priority"
             disabled
-            :colors="['#ecf0f1', '#f1c40f', '#d35400', '#c0392b']"
+            :colors="['#636e72', '#fdcb6e', '#e17055', '#d63031']"
           ></el-rate>
         </div>
       </div>

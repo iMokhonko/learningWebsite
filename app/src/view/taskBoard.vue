@@ -18,82 +18,27 @@
     </div>
 
     <div class="tasks-container">
-      <div class="task-stage" :key="stageIndex" v-for="(stage, stageIndex) in taskBoard">
-        <div class="stage-btns-controls" v-if="editMode">
-          <el-tooltip class="item" effect="dark" content="move this stage left" placement="top">
-            <el-button
-              size="mini"
-              v-if="stageIndex != 0"
-              @click="moveStageLeft(stage)"
-              type="info"
-              icon="el-icon-arrow-left"
-              circle
-            ></el-button>
-          </el-tooltip>
-
-          <el-tooltip class="item" effect="dark" content="move this stage right" placement="top">
-            <el-button
-              size="mini"
-              @click="moveStageRight(stage)"
-              v-if="stageIndex != taskBoard.length - 1"
-              type="info"
-              icon="el-icon-arrow-right"
-              circle
-            ></el-button>
-          </el-tooltip>
-
-          <el-tooltip class="item" effect="dark" content="edit this stage" placement="top">
-            <el-button
-              @click="openEditStageWindow(stage)"
-              size="mini"
-              type="primary"
-              icon="el-icon-edit"
-              circle
-            ></el-button>
-          </el-tooltip>
-
-          <el-tooltip class="item" effect="dark" content="delete this stage" placement="top">
-            <el-button
-              size="mini"
-              @click="deleteStage(stage)"
-              type="danger"
-              icon="el-icon-delete"
-              circle
-            ></el-button>
-          </el-tooltip>
-        </div>
-
-        <div class="task-stage-name" :class="{'left-text': editMode}">{{ stage.title }}</div>
-        <div class="stage-tasks">
+      <draggable
+        :list="taskBoard"
+        :disabled="!editMode"
+        ghost-class="ghost-dragging"
+        @end="onDragged"
+        v-bind="dragOptions"
+      >
+        <transition-group>
           <div
-            class="task"
-            @click="openTask(task, stage)"
-            :key="taskIndex"
-            v-for="(task, taskIndex) in taskBoard[stageIndex].tasks"
+            :class="{'task-stage' : true, 'draggable' : editMode}"
+            :key="stageIndex"
+            v-for="(stage, stageIndex) in taskBoard"
           >
-            <div class="task-title">{{ task.title }}</div>
-            <pre>{{ task.desc }}</pre>
-
-            <div class="task-rate-block">
-              <el-rate
-                v-model="task.priority"
-                disabled
-                :colors="['#ecf0f1', '#f1c40f', '#d35400', '#c0392b']"
-              ></el-rate>
-            </div>
-
-            <div
-              class="task-days-left"
-            >Days left: {{ Math.ceil(Math.abs(task.taskDateRange[1] - new Date().getTime()) / (1000 * 3600 * 24)) }}</div>
-
-            <div class="task-edit-btns-block">
-              <el-tooltip class="item" effect="dark" content="Send this task back" placement="top">
+            <div class="stage-btns-controls" v-if="editMode">
+              <el-tooltip class="item" effect="dark" content="move this stage left" placement="top">
                 <el-button
                   size="mini"
-                  v-if="!editMode"
-                  @click.stop="openMoveTaskBackWindow(task, stage)"
+                  v-if="stageIndex != 0"
+                  @click="moveStageLeft(stage)"
                   type="info"
-                  icon="el-icon-back"
+                  icon="el-icon-arrow-left"
                   circle
                 ></el-button>
               </el-tooltip>
@@ -101,53 +46,139 @@
               <el-tooltip
                 class="item"
                 effect="dark"
-                content="Finish this task in current stage"
+                content="move this stage right"
                 placement="top"
               >
                 <el-button
                   size="mini"
-                  v-if="!editMode"
-                  @click.stop="finishTask(task, stage)"
-                  type="success"
-                  icon="el-icon-check"
+                  @click="moveStageRight(stage)"
+                  v-if="stageIndex != taskBoard.length - 1"
+                  type="info"
+                  icon="el-icon-arrow-right"
                   circle
                 ></el-button>
               </el-tooltip>
 
-              <el-tooltip
-                class="item"
-                v-if="editMode"
-                effect="dark"
-                content="Edit this task"
-                placement="top"
-              >
+              <el-tooltip class="item" effect="dark" content="edit this stage" placement="top">
                 <el-button
+                  @click="openEditStageWindow(stage)"
                   size="mini"
-                  @click.stop="openEditTaskWindow(task, stage)"
                   type="primary"
                   icon="el-icon-edit"
                   circle
                 ></el-button>
               </el-tooltip>
-              <el-tooltip
-                class="item"
-                v-if="editMode"
-                effect="dark"
-                content="delete this task"
-                placement="top"
-              >
+
+              <el-tooltip class="item" effect="dark" content="delete this stage" placement="top">
                 <el-button
                   size="mini"
-                  @click.stop="deleteTask(task, stage.stageId)"
+                  @click="deleteStage(stage)"
                   type="danger"
                   icon="el-icon-delete"
                   circle
                 ></el-button>
               </el-tooltip>
             </div>
+
+            <div class="task-stage-name" :class="{'left-text': editMode}">{{ stage.title }}</div>
+            <div class="stage-tasks">
+              <div
+                @click="openTask(task, stage)"
+                :key="taskIndex"
+                v-for="(task, taskIndex) in taskBoard[stageIndex].tasks"
+              >
+                <el-badge :hidden="!task.taskDateRange" :value="task.taskDateRange ? 'Days left: ' + Math.ceil(Math.abs(task.taskDateRange[1] - new Date().getTime()) / (1000 * 3600 * 24)) : 0" class="item">
+                  <div class="task">
+                    <div class="task-rate-block">
+                      <el-tooltip
+                        :open-delay="700"
+                        class="item"
+                        effect="dark"
+                        content="Priority"
+                        placement="bottom"
+                      >
+                        <el-rate
+                          v-model="task.priority"
+                          disabled
+                          class="rate-bg"
+                          :colors="['#636e72', '#fdcb6e', '#e17055', '#d63031']"
+                        ></el-rate>
+                      </el-tooltip>
+                    </div>
+                    <div class="task-title">{{ task.title }}</div>
+                    <pre>{{ task.desc ? task.desc : 'No description' }}</pre>
+
+                    <div class="task-edit-btns-block">
+                      <el-tooltip
+                        class="item"
+                        effect="dark"
+                        content="Send this task back"
+                        placement="top"
+                      >
+                        <el-button
+                          size="mini"
+                          v-if="!editMode"
+                          @click.stop="openMoveTaskBackWindow(task, stage)"
+                          type="info"
+                          icon="el-icon-back"
+                          circle
+                        ></el-button>
+                      </el-tooltip>
+
+                      <el-tooltip
+                        class="item"
+                        effect="dark"
+                        content="Finish this task in current stage"
+                        placement="top"
+                      >
+                        <el-button
+                          size="mini"
+                          v-if="!editMode"
+                          @click.stop="finishTask(task, stage)"
+                          type="success"
+                          icon="el-icon-check"
+                          circle
+                        ></el-button>
+                      </el-tooltip>
+
+                      <el-tooltip
+                        class="item"
+                        v-if="editMode"
+                        effect="dark"
+                        content="Edit this task"
+                        placement="top"
+                      >
+                        <el-button
+                          size="mini"
+                          @click.stop="openEditTaskWindow(task, stage)"
+                          type="primary"
+                          icon="el-icon-edit"
+                          circle
+                        ></el-button>
+                      </el-tooltip>
+                      <el-tooltip
+                        class="item"
+                        v-if="editMode"
+                        effect="dark"
+                        content="delete this task"
+                        placement="top"
+                      >
+                        <el-button
+                          size="mini"
+                          @click.stop="deleteTask(task, stage.stageId)"
+                          type="danger"
+                          icon="el-icon-delete"
+                          circle
+                        ></el-button>
+                      </el-tooltip>
+                    </div>
+                  </div>
+                </el-badge>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </transition-group>
+      </draggable>
     </div>
 
     <el-dialog
@@ -176,7 +207,7 @@
 
         <div style="display:inline-block;vertical-align:top;">
           <div class="task-form-label">Task priority:</div>
-          <el-rate v-model="task.priority" :colors="['#ecf0f1', '#f1c40f', '#d35400', '#c0392b']"></el-rate>
+          <el-rate v-model="task.priority" :colors="['#636e72', '#fdcb6e', '#e17055', '#d63031']"></el-rate>
         </div>
       </form>
       <span slot="footer" class="dialog-footer">
@@ -252,7 +283,12 @@
 import * as fb from "firebase";
 import { stat } from "fs";
 
+import draggable from "vuedraggable";
+
 export default {
+  components: {
+    draggable
+  },
   data() {
     return {
       editMode: false,
@@ -280,7 +316,7 @@ export default {
       moveTaskBackWindow: false,
       moveToStageId: null,
       moveBackReason: "",
-      prevStages: [],
+      prevStages: []
     };
   },
   mounted() {
@@ -297,6 +333,11 @@ export default {
   computed: {
     currentUser() {
       return this.$store.getters["userState/user"];
+    },
+    dragOptions() {
+      return {
+        animation: 200
+      };
     }
   },
   methods: {
@@ -322,13 +363,22 @@ export default {
       this.task = task;
       this.stage = stage;
 
-      this.prevState = {title: this.task.title, desc: this.task.desc, priority: this.task.priority, taskDateRange: this.task.taskDateRange};
+      this.prevState = {
+        title: this.task.title,
+        desc: this.task.desc,
+        priority: this.task.priority,
+        taskDateRange: this.task.taskDateRange
+      };
     },
 
     async addEditTask() {
       if (this.editTask) {
-
-          const newState = {title: this.task.title, desc: this.task.desc, priority: this.task.priority, taskDateRange: this.task.taskDateRange};
+        const newState = {
+          title: this.task.title,
+          desc: this.task.desc,
+          priority: this.task.priority,
+          taskDateRange: this.task.taskDateRange
+        };
 
         this.task.lifecycle.push({
           type: "edited",
@@ -337,7 +387,7 @@ export default {
           prevState: this.prevState
         });
 
-        console.log(this.task)
+        console.log(this.task);
 
         let update = {};
         update[
@@ -490,11 +540,14 @@ export default {
               const stageValue = snapshot.val()[key][stage];
               stageValue.stageId = stage;
               if (stageValue.tasks !== undefined) {
+                let stageTasks = [];
                 Object.keys(stageValue.tasks).forEach(key => {
                   stageValue.tasks[key].taskId = key;
+                  stageTasks.push(stageValue.tasks[key]);
                 });
+                stageValue.tasks = stageTasks;
+                this.sortByPriority(stageValue.tasks);
               }
-
               this.taskBoard.push(stageValue);
             });
           }
@@ -508,6 +561,12 @@ export default {
     sortStages(taskBoard) {
       taskBoard.sort((first, next) => {
         return first.order - next.order;
+      });
+    },
+
+    sortByPriority(tasks) {
+      tasks.sort((first, next) => {
+        return next.priority - first.priority;
       });
     },
 
@@ -691,18 +750,37 @@ export default {
         .database()
         .ref()
         .update(updates);
+    },
+
+    onDragged(e) {
+      let updates = this.changeOrder();
+
+      console.log(updates);
+
+      this.updateDb(updates);
+    },
+
+    changeOrder() {
+      let updates = {};
+      for (let i = 0; i < this.taskBoard.length; i++) {
+        this.taskBoard[i].order = i;
+        updates[
+          "/taskBoard/user-" +
+            this.currentUser.uid +
+            "/stages/" +
+            this.taskBoard[i].stageId
+        ] = this.taskBoard[i];
+      }
+      return updates;
     }
   }
 };
 </script>
 
-<style>
+<style lang="scss">
 .tasks-container {
   position: relative;
-  min-height: 100vh;
   width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
   margin-top: 50px;
   border-top: 1px solid #f2f2f2;
   border-bottom: 1px solid #f2f2f2;
@@ -712,10 +790,11 @@ export default {
 .task {
   display: block;
   box-sizing: border-box;
+  width: 250px;
   padding: 25px;
   border: 1px solid #f2f2f2;
   border-radius: 3px;
-  word-break: break-all;
+  word-break: break-word;
   margin-bottom: 30px;
   padding-bottom: 0px;
   white-space: pre;
@@ -734,31 +813,22 @@ export default {
 }
 
 .task-rate-block {
-  position: absolute;
-  margin-top: 5px;
-  margin-left: 46px;
-}
-
-.task-days-left {
-  position: absolute;
-  font-size: 11px;
-  color: grey;
-  margin-top: 23px;
-  margin-left: 160px;
+  position: relative;
+  margin-top: -15px;
+  margin-bottom: 5px;
+  text-align: center;
+  margin-left: 7px;
 }
 
 .task-stage {
   display: inline-block;
   border-right: 1px solid #f2f2f2;
-  box-sizing: border-box;
   width: 300px;
   vertical-align: top;
-  min-height: 100vh;
 }
 
 .stage-tasks {
-  overflow: auto;
-  padding: 20px;
+  padding: 25px;
 }
 
 .task-stage-name {
@@ -767,12 +837,11 @@ export default {
   text-align: center;
   font-weight: bold;
   padding: 20px;
+  background: rgba(236, 240, 241, 0.1);
 }
 
 .task-edit-btns-block {
-  border-top: 1px solid #f2f2f2;
-  margin-top: 15px;
-  padding-top: 10px;
+  padding-top: 8px;
   text-align: center;
   margin-bottom: -13px;
 }
@@ -782,6 +851,10 @@ export default {
   left: 50%;
   margin-left: -250px;
   position: relative;
+}
+
+.el-button--mini.is-circle {
+  padding: 5px;
 }
 
 .control-btns {
@@ -812,6 +885,23 @@ pre {
   font-size: 15px;
   font-weight: bold;
   margin: 10px 0px;
+}
+
+.ghost-dragging {
+  opacity: 0.5;
+}
+
+.draggable {
+  cursor: move;
+}
+
+.draggable:hover {
+  background: rgba(236, 240, 241, 0.1);
+}
+
+.el-badge__content.is-fixed {
+  right: 58px;
+  font-size: 10px;
 }
 </style>
 

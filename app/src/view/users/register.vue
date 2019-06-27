@@ -180,8 +180,11 @@
         <div class="formContainer">
           <h2 align="center">Your image</h2>
 
-          <div style="text-align:center;margin: 30px 0px;" v-if="fileName.length > 0">
-            <img style="max-width: 300px;" :src="user.image" alt>
+          <div style="text-align:center;margin: 30px 0px;" v-show="fileName.length > 0">
+            <img id="cropImage" :src="user.image">
+            <hr>
+            <img id="croppedImg" width="200px" height="200px" style="border-radius:50%">
+
             <el-progress
               :stroke-width="20"
               :text-inside="true"
@@ -205,7 +208,9 @@
               icon="el-icon-delete"
               circle
             ></el-button>
+
             {{ fileName.length > 0 ? fileName : " Upload your image"}}
+            <el-button @click="uploadCroppedImg" type="primary" v-if="fileName.length > 0">UPLOAD</el-button>
           </div>
 
           <input
@@ -280,7 +285,6 @@
             ></el-date-picker>
           </div>
 
-        
           <div class="stepButtonsBlock">
             <el-button-group>
               <el-button @click="prevStep" type="primary" icon="el-icon-arrow-left">Previous: sex</el-button>
@@ -370,10 +374,64 @@ export default {
         { color: "green", percentage: 100 }
       ],
       fileName: "",
-      imgUploading: 0
+      file: null,
+      imgUploading: 0,
+      jcrop: null,
+
+      cropCoords: {}
     };
   },
+  mounted() {},
   methods: {
+    showCoords(c) {
+      this.cropCoords = c;
+
+      var img = new Image();
+      img.addEventListener(
+        "load",
+        () => {
+          console.log("loaded");
+          let canvas = document.createElement("canvas");
+
+          let fullImg = document.getElementById("cropImage");
+
+          canvas.height = fullImg.height;
+          canvas.width = fullImg.width;
+
+          let ctx = canvas.getContext("2d");
+          ctx.drawImage(fullImg, 0, 0);
+          let imageData = ctx.getImageData(
+            this.cropCoords.x,
+            this.cropCoords.y,
+            this.cropCoords.w,
+            this.cropCoords.h
+          );
+
+          var canvas1 = document.createElement("canvas");
+          var ctx1 = canvas1.getContext("2d");
+
+          canvas1.width = this.cropCoords.w;
+          canvas1.height = this.cropCoords.h;
+
+          ctx1.putImageData(
+            imageData,
+            0,
+            0,
+            0,
+            0,
+            this.cropCoords.w,
+            this.cropCoords.h
+          );
+
+          let newImg = document.getElementById("croppedImg");
+          newImg.src = canvas1.toDataURL("image/png");
+        },
+        false
+      );
+
+      img.src = this.file;
+    },
+
     nextStep() {
       this.active++;
     },
@@ -397,28 +455,29 @@ export default {
           console.log("deleted");
           this.fileName = "";
           this.loading = false;
+          let croppedImg = document.getElementById("croppedImg");
+          this.user.image = "";
+
+          console.log(this.user);
         })
         .catch(error => {
           console.log("error");
         });
     },
-    async onFileChange(event) {
-      let file = event.target.files[0];
-      this.fileName = file.name;
+
+    uploadCroppedImg() {
+      let fileInput = document.getElementById("uploadInput");
 
       let reader = new FileReader();
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(fileInput.files[0]);
 
       reader.onload = async e => {
-        this.user.image = reader.result;
-
-        const imageExt = file.name.slice(file.name.lastIndexOf("."));
-        console.log(imageExt);
+        let cropedImg = document.getElementById("croppedImg");
 
         const fileData = fb
           .storage()
-          .ref("user_images/" + file.name)
-          .put(file);
+          .ref("user_images/" + fileInput.files[0].name)
+          .putString(cropedImg.src, "data_url");
 
         fileData.on(
           "state_changed",
@@ -436,8 +495,38 @@ export default {
         );
       };
     },
+
+    async onFileChange(event) {
+
+      $("#cropImage").Jcrop(
+        {
+          onSelect: this.showCoords,
+          aspectRatio: 1 / 1,
+          minSize: [200, 200],
+          maxSize: [1000, 1000],
+          boxWidth: 500,
+          boxHeight: 0
+        }
+      );
+
+      let file = event.target.files[0];
+      this.fileName = file.name;
+
+      let jcrop = $.Jcrop("#cropImage", {
+        trueSize: [file.clientWidth, file.clientHeight]
+      });
+
+      let reader = new FileReader();
+      reader.readAsDataURL(file);
+
+      reader.onload = async e => {
+        this.user.image = reader.result;
+        this.file = reader.result;
+        const imageExt = file.name.slice(file.name.lastIndexOf("."));
+      };
+    },
     registerUser() {
-      this.$store.dispatch('userState/registerUser', this.user);
+      this.$store.dispatch("userState/registerUser", this.user);
     }
   },
   validations: {
