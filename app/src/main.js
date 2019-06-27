@@ -11,9 +11,7 @@ import Vuelidate from 'vuelidate';
 
 import * as fb from 'firebase';
 
-
 Vue.config.productionTip = true;
-
 
 Vue.use(VueRouter);
 Vue.use(ElementUI);
